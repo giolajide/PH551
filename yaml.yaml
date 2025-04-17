@@ -1,0 +1,112 @@
+# General 
+root: trained_models-1
+run_name: M4-1
+allow_tf32: true
+log_batch_freq: 1
+append: true
+log_epoch_freq: 1
+default_dtype: float32
+seed: 12345
+
+# Dataset 
+dataset: ase
+dataset_file_name: ./train.traj
+n_train: 800
+validation_dataset: ase
+validation_dataset_file_name: ./valid.traj
+n_val: 200
+exclude_keys:
+- magmom
+- dipole
+chemical_symbol_to_type:
+  H: 0  
+  O: 1 
+global_rescale_scale: dataset_forces_rms
+per_species_rescale_shifts: dataset_per_atom_total_energy_mean
+per_species_rescale_scales: dataset_forces_rms
+
+# Nequip Model 
+num_basis: 6
+r_max: 6.5
+num_layers: 3
+num_features: 32
+l_max: 2
+parity: true
+PolynomialCutoff_p: 12
+invariant_layers: 2
+invariant_neurons: 32
+avg_num_neighbors: auto
+BesselBasis_trainable: true
+nonlinearity_type: gate
+resnet: false
+use_sc: true
+nonlinearity_scalars:
+  e: silu
+  o: tanh
+nonlinearity_gates:
+  e: silu
+  o: tanh
+model_builders:
+  - SimpleIrrepsConfig
+  - EnergyModel
+  - PerSpeciesRescale
+  - PairPotentialTerm   # MUST come after PerSpeciesRescale
+  - StressForceOutput
+  - RescaleEnergyEtc
+pair_style: ZBL
+units: metal
+    
+# Training 
+batch_size: 1
+validation_batch_size: 1
+max_epochs: 400
+learning_rate: 0.0005
+
+# Scheduler 
+lr_scheduler_name: CosineAnnealingWarmRestarts
+lr_scheduler_T_0: 50
+lr_scheduler_T_mult: 1
+lr_scheduler_eta_min: 0
+lr_scheduler_last_epoch: -1
+
+# Stopping Bounds 
+early_stopping_upper_bounds:
+  validation_loss: 500
+early_stopping_lower_bounds:
+  LR: 0
+
+# Loss 
+loss_coeffs:
+  forces:
+  - 10
+  - PerSpeciesL1Loss
+  total_energy:
+  - 1
+  - PerAtomL1Loss
+  stress: 1000
+
+# Metrics 
+metrics_components:
+  - - forces
+    - mae
+    - PerSpecies: true
+      report_per_component: false
+  - - forces
+    - rmse
+    - PerSpecies: true
+      report_per_component: false
+  - - total_energy
+    - mae
+    - PerAtom: true
+  - - total_energy
+    - rmse
+    - PerAtom: true
+  - - stress
+    - mae
+  - - stress
+    - rmse
+  
+# Misc 
+optimizer_name: Adam
+wandb: false
+
